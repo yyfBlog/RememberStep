@@ -1,17 +1,16 @@
-package com.yf.rememberstep;
+package com.yf.rememberstep.services;
 
 import android.app.Service;
 import android.content.Intent;
-import android.hardware.Sensor;
-import android.hardware.SensorManager;
 import android.os.IBinder;
+import android.support.annotation.IntDef;
 import android.support.annotation.Nullable;
 
 /**
- * Created by yyf on 2017/11/7.
+ * Created by yyf on 2017/11/10.
  */
 
-public class StepCounterService extends Service {
+public class StepCounterServiceRemote extends Service {
 
     @Override
     public void onCreate() {
