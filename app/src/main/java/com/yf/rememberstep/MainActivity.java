@@ -62,6 +62,9 @@ public class MainActivity extends AppCompatActivity implements IStepCounterSenso
         tv_count.setText(String.valueOf(currentCount));
     }
 
+    /**
+     * 与另外一个进程建立双向绑定
+     */
     private ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
