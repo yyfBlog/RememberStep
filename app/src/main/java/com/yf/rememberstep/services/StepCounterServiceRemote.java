@@ -30,7 +30,7 @@ public class StepCounterServiceRemote extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: ");
-        bindService(new Intent(this, StepCounterServiceLocal.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+        bindService(new Intent(StepCounterServiceRemote.this, StepCounterServiceLocal.class), mServiceConnection, Context.BIND_IMPORTANT);
         return START_REDELIVER_INTENT;
     }
 
@@ -60,8 +60,15 @@ public class StepCounterServiceRemote extends Service {
         public void onServiceDisconnected(ComponentName componentName) {
             Log.d(TAG, "onServiceDisconnected: ");
             StepCounterServiceRemote.this.startService(new Intent(StepCounterServiceRemote.this, StepCounterServiceLocal.class));
-            StepCounterServiceRemote.this.bindService(new Intent(StepCounterServiceRemote.this, StepCounterServiceLocal.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+            StepCounterServiceRemote.this.bindService(new Intent(StepCounterServiceRemote.this,StepCounterServiceLocal.class),mServiceConnection,Context.BIND_IMPORTANT);
             Toast.makeText(getApplicationContext(), TAG + "服务断开连接", Toast.LENGTH_SHORT).show();
         }
     };
+
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        unbindService(mServiceConnection);
+    }
 }

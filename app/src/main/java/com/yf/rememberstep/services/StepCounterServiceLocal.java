@@ -61,7 +61,7 @@ public class StepCounterServiceLocal extends Service implements SensorEventListe
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: ");
-        bindService(new Intent(this, StepCounterServiceRemote.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+        bindService(new Intent(this, StepCounterServiceRemote.class), mServiceConnection, Context.BIND_IMPORTANT);
         return START_REDELIVER_INTENT;
     }
 
@@ -86,7 +86,7 @@ public class StepCounterServiceLocal extends Service implements SensorEventListe
             Toast.makeText(getApplicationContext(), TAG + "服务断开连接", Toast.LENGTH_SHORT).show();
             mIStepCounterProcess = null;
             StepCounterServiceLocal.this.startService(new Intent(StepCounterServiceLocal.this, StepCounterServiceRemote.class));
-            StepCounterServiceLocal.this.bindService(new Intent(StepCounterServiceLocal.this, StepCounterServiceRemote.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+            StepCounterServiceLocal.this.bindService(new Intent(StepCounterServiceLocal.this, StepCounterServiceRemote.class), mServiceConnection, Context.BIND_IMPORTANT);
         }
     };
 
@@ -145,5 +145,12 @@ public class StepCounterServiceLocal extends Service implements SensorEventListe
         } else {// 不支持该计步传感器
             Log.e(TAG, "isSupportStepCounterSensor:  不支持传感器");
         }
+    }
+
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        unbindService(mServiceConnection);
     }
 }
