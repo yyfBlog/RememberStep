@@ -1,8 +1,10 @@
 package com.yf.rememberstep.services;
 
 import android.app.Service;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -14,7 +16,9 @@ import android.support.annotation.IntDef;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
+import android.widget.Toast;
 
+import com.yf.rememberstep.MainActivity;
 import com.yf.rememberstep.aidl.IStepCounterProcess;
 import com.yf.rememberstep.interfaces.IStepCounterSensorChange;
 import com.yf.rememberstep.utils.SharedPreferencesUtils;
@@ -40,11 +44,11 @@ import java.util.concurrent.ScheduledExecutorService;
  * 魅蓝5s 没有不支持这个传感器
  */
 public class StepCounterServiceLocal extends Service implements SensorEventListener {
-    private static final String TAG = "StepCounterListener";
+    private static final String TAG = "StepCounterServiceLocal";
     private int todayCount;
     private JSONObject mJSONObject;
     private MyBinder mMyBinder;
-
+    private IStepCounterProcess mIStepCounterProcess;
 
     @Override
     public void onCreate() {
@@ -57,8 +61,35 @@ public class StepCounterServiceLocal extends Service implements SensorEventListe
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: ");
-        return super.onStartCommand(intent, flags, startId);
+        bindService(new Intent(this, StepCounterServiceRemote.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+        return START_REDELIVER_INTENT;
     }
+
+    /**
+     * 与另外一个进程建立双向绑定
+     */
+    private ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            try {
+                mIStepCounterProcess = IStepCounterProcess.Stub.asInterface(iBinder);
+                Log.d(TAG, "onServiceConnected: 服务连接成功" + mIStepCounterProcess.getStepsNumber());
+                Toast.makeText(getApplicationContext(), TAG + "服务连接", Toast.LENGTH_SHORT).show();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            Log.d(TAG, "onServiceDisconnected: 服务断开连接");
+            Toast.makeText(getApplicationContext(), TAG + "服务断开连接", Toast.LENGTH_SHORT).show();
+            mIStepCounterProcess = null;
+            StepCounterServiceLocal.this.startService(new Intent(StepCounterServiceLocal.this, StepCounterServiceRemote.class));
+            StepCounterServiceLocal.this.bindService(new Intent(StepCounterServiceLocal.this, StepCounterServiceRemote.class), mServiceConnection, Context.BIND_AUTO_CREATE);
+        }
+    };
+
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {

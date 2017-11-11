@@ -45,9 +45,12 @@ public class MainActivity extends AppCompatActivity implements IStepCounterSenso
     }
 
     private void initView() {
+        startService(new Intent(this, StepCounterServiceLocal.class));
+        startService(new Intent(this, StepCounterServiceRemote.class));
+
         tv_count = (TextView) findViewById(R.id.tv_count);
-        Intent intent = new Intent(this, StepCounterServiceLocal.class);
-        bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
+//        Intent intent = new Intent(this, StepCounterServiceLocal.class);
+//        bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
         mScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         mScheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -81,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements IStepCounterSenso
         public void onServiceDisconnected(ComponentName componentName) {
             Log.d(TAG, "onServiceDisconnected: 服务断开连接");
             mIStepCounterProcess = null;
-            startService(new Intent(MainActivity.this, StepCounterServiceRemote.class));
+            startService(new Intent(MainActivity.this, StepCounterServiceLocal.class));
         }
     };
 
@@ -97,5 +100,10 @@ public class MainActivity extends AppCompatActivity implements IStepCounterSenso
             e.printStackTrace();
         }
         return 0;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 }
