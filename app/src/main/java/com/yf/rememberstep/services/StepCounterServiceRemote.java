@@ -53,6 +53,7 @@ public class StepCounterServiceRemote extends Service {
     private ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            Log.d(TAG, "onServiceConnected: ");
             Toast.makeText(getApplicationContext(), TAG + "服务连接", Toast.LENGTH_SHORT).show();
         }
 

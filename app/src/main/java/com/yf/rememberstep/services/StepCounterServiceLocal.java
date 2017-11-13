@@ -1,9 +1,11 @@
 package com.yf.rememberstep.services;
 
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -21,6 +23,7 @@ import android.widget.Toast;
 import com.yf.rememberstep.MainActivity;
 import com.yf.rememberstep.aidl.IStepCounterProcess;
 import com.yf.rememberstep.interfaces.IStepCounterSensorChange;
+import com.yf.rememberstep.utils.DateUtils;
 import com.yf.rememberstep.utils.SharedPreferencesUtils;
 
 import org.json.JSONException;
@@ -28,6 +31,7 @@ import org.json.JSONObject;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by yyf on 2017/11/7.
@@ -49,6 +53,7 @@ public class StepCounterServiceLocal extends Service implements SensorEventListe
     private JSONObject mJSONObject;
     private MyBinder mMyBinder;
     private IStepCounterProcess mIStepCounterProcess;
+    private ScheduledExecutorService mScheduledExecutorService;
 
     @Override
     public void onCreate() {
@@ -56,14 +61,55 @@ public class StepCounterServiceLocal extends Service implements SensorEventListe
         mJSONObject = new JSONObject();
         isSupportStepCounterSensor();
         mMyBinder = new MyBinder();
+        mScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: ");
         bindService(new Intent(this, StepCounterServiceRemote.class), mServiceConnection, Context.BIND_IMPORTANT);
+        startTask();
         return START_REDELIVER_INTENT;
     }
+
+
+    private void startTask() {
+        mScheduledExecutorService.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String oldTodayData = (String) SharedPreferencesUtils.getParam(getApplicationContext(), "todayData", "");
+                    if (!TextUtils.isEmpty(oldTodayData)) {
+                        JSONObject jsonObject = new JSONObject(oldTodayData);
+                        int oldTodayCount = jsonObject.getInt("todayCount");
+                        String oldTodayTime = jsonObject.getString("todayTime");
+                        if (oldTodayTime.equals(DateUtils.getTodayDate())) {
+                            //如果是发生在同一天内 那么今天的步数=上次保存的步数+ 传感器获取的步数
+                            if (oldTodayCount > todayCount) {
+                                //如果保存的步数大于传感器发出的步数，那么可以断定手机关机了
+                                todayCount = oldTodayCount + todayCount;
+                            }
+                            mJSONObject.put("todayCount", todayCount);
+                        } else { //如果不是同一天且传感器的步数大于保存的 那么可以断定 手机没有关机
+                            if (todayCount > oldTodayCount) {
+                                //今天的步数=传感器的步数-上次保存的步数
+                                todayCount = todayCount - oldTodayCount;
+                            }
+                            mJSONObject.put("todayCount", todayCount);
+                        }
+                    }else {
+                        //假设用户没关机 有1万步
+                        mJSONObject.put("todayCount", todayCount);
+                    }
+                    mJSONObject.put("todayTime", DateUtils.getTodayDate());
+                    SharedPreferencesUtils.setParam(getApplicationContext(), "todayData", mJSONObject.toString());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, 0,1000, TimeUnit.MILLISECONDS);
+    }
+
 
     /**
      * 与另外一个进程建立双向绑定
@@ -93,22 +139,13 @@ public class StepCounterServiceLocal extends Service implements SensorEventListe
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
-        try {
-            if (sensorEvent.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
-                Log.d(TAG, "onSensorChanged: " + sensorEvent.values[0]);
-                todayCount = (int) sensorEvent.values[0];
-                String oldTodayData = (String) SharedPreferencesUtils.getParam(getApplicationContext(), "todayData", "");
-                if (!TextUtils.isEmpty(oldTodayData)) {
-                    JSONObject jsonObject = new JSONObject(oldTodayData);
-                    long oldTodayTime = jsonObject.getLong("todayTime");
-                }
-                mJSONObject.put("todayCount", todayCount);
-                mJSONObject.put("todayTime", System.currentTimeMillis());
-                SharedPreferencesUtils.setParam(getApplicationContext(), "todayData", mJSONObject.toString());
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
+        if (sensorEvent.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
+            Log.d(TAG, "onSensorChanged: " + sensorEvent.values[0]);
+            todayCount = (int) sensorEvent.values[0];
+
+            Log.d(TAG, "onSensorChanged: "+sensorEvent.timestamp);
         }
+
     }
 
     @Override
